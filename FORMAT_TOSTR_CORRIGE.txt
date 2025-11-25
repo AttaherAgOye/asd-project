@@ -1,0 +1,154 @@
+═══════════════════════════════════════════════════════════════════
+  FORMAT toStr() CORRIGÉ - STRUCTURE HIÉRARCHIQUE
+═══════════════════════════════════════════════════════════════════
+
+✅ CORRECTION APPLIQUÉE
+
+
+📋 ANCIEN FORMAT (INCORRECT)
+────────────────────────────
+
+Format plat avec parenthèses autour des feuilles uniquement :
+
+(ffffff) (000000) (ffffff) (ffffff) (ffffff) (000000) (ffffff) ...
+
+❌ Problèmes :
+  • Impossible de voir la structure de l'arbre
+  • Toutes les feuilles au même niveau
+  • Pas d'indication des nœuds internes
+
+
+📋 NOUVEAU FORMAT (CORRECT - selon le sujet)
+─────────────────────────────────────────────
+
+Format hiérarchique avec parenthèses imbriquées :
+
+(ffffff (000000 ffffff ffffff ffffff) (000000 ffffff ffffff 000000) ffffff)
+
+✅ Avantages :
+  • Structure arborescente visible
+  • Parenthèses montrent les nœuds internes
+  • Feuilles sans parenthèses supplémentaires
+
+
+🌳 EXEMPLE DÉTAILLÉ
+───────────────────
+
+Arbre simple 4×4 :
+
+        Racine
+       /  |  \  \
+      /   |   \   \
+    NO   NE   SE   SO
+    
+NO = nœud interne avec 4 feuilles
+NE = feuille blanche
+SE = nœud interne avec 4 feuilles  
+SO = feuille noire
+
+
+Format AVANT (incorrect) :
+(ffffff) (000000) (ffffff) (ffffff) (ffffff) (ffffff) (000000) (ffffff) (ffffff) (000000)
+
+Format APRÈS (correct) :
+((000000 ffffff ffffff ffffff) ffffff (000000 ffffff ffffff 000000) 000000)
+ └──────────── NO ─────────────┘       └──────────── SE ─────────────┘
+                              └ NE ┘                                  └ SO ┘
+
+
+🔍 RÈGLES DE FORMATAGE
+──────────────────────
+
+1. FEUILLE :
+   Format : code_hex
+   Exemple : ffffff
+   
+2. NŒUD INTERNE :
+   Format : (fils_NO fils_NE fils_SE fils_SO)
+   Exemple : (ffffff 000000 7f7f7f bfbfbf)
+   
+3. ORDRE DES FILS :
+   Toujours : NO (Nord-Ouest), NE (Nord-Est), SE (Sud-Est), SO (Sud-Ouest)
+   
+4. SÉPARATEUR :
+   Espace entre chaque élément
+
+
+📊 EXEMPLE AVEC L'IMAGE DU SUJET
+─────────────────────────────────
+
+Ligne 1 (sujet) :
+(ffffff (000000 ffffff ffffff ffffff) (000000 ffffff ffffff 000000) ffffff)
+
+Décomposition :
+- Racine est un nœud interne : (...)
+  ├─ NO : nœud interne (000000 ffffff ffffff ffffff)
+  │       ├─ NO : 000000
+  │       ├─ NE : ffffff
+  │       ├─ SE : ffffff
+  │       └─ SO : ffffff
+  ├─ NE : nœud interne (000000 ffffff ffffff 000000)
+  │       ├─ NO : 000000
+  │       ├─ NE : ffffff
+  │       ├─ SE : ffffff
+  │       └─ SO : 000000
+  ├─ SE : feuille ffffff
+  └─ SO : feuille ffffff (non affiché car dernier)
+
+
+🎯 DIFFÉRENCE CLEF
+──────────────────
+
+                 ANCIEN          NOUVEAU
+              ────────────────────────────
+Feuille       (ffffff)         ffffff
+Nœud interne  fils1 fils2...   (...fils...)
+Structure     Plate ❌         Hiérarchique ✅
+
+
+💻 CODE MODIFIÉ
+───────────────
+
+private void toStrRecursive(Node node, StringBuilder sb) {
+    if (node == null) return;
+    
+    if (node.isLeaf()) {
+        // ✅ Feuille : juste le code hexa (sans parenthèses)
+        sb.append(ImagePNG.colorToHex(node.color)).append(" ");
+    } else {
+        // ✅ Nœud interne : parenthèses autour des 4 fils
+        sb.append("(");
+        toStrRecursive(node.NO, sb);
+        toStrRecursive(node.NE, sb);
+        toStrRecursive(node.SE, sb);
+        toStrRecursive(node.SO, sb);
+        sb.append(") ");
+    }
+}
+
+
+🧪 TEST
+───────
+
+Pour l'image 32-tux.png :
+
+AVANT :
+(ffffff) (ffffff) (ffffff) (ffffff) (1e1a1b) (ffffff) ...
+→ Juste une liste plate de couleurs
+
+APRÈS :
+(((ffffff ffffff ffffff ffffff) (1e1a1b ffffff 211d1e 141011) ...) ...)
+→ Structure arborescente visible !
+
+
+✨ RÉSULTAT
+───────────
+
+Maintenant, en lisant le fichier texte, vous pouvez :
+✓ Voir la structure hiérarchique de l'arbre
+✓ Identifier les nœuds internes vs les feuilles
+✓ Comprendre comment l'image est divisée
+✓ Correspondre exactement au format du sujet
+
+
+═══════════════════════════════════════════════════════════════════

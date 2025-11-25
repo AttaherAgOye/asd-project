@@ -1,0 +1,426 @@
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Scanner;
+import java.awt.Color;
+
+/**
+ * Programme principal pour la compression d'images bitmap
+ * Utilise R-quadtree et AVL
+ */
+public class Main {
+    
+    private static Scanner scanner = new Scanner(System.in);
+    private static RQuadtree currentQuadtree = null;
+    private static AVL currentAVL = null;
+    private static String currentImageName = null;
+    
+    public static void main(String[] args) {
+        // Mode non-interactif pour Lambda/Phi
+        if (args.length >= 3) {
+            executeNonInteractiveMode(args);
+            return;
+        }
+        
+        // Mode interactif avec menu
+        executeInteractiveMode();
+    }
+    
+    /**
+     * Mode non-interactif : traitement Lambda ou Phi
+     * Syntaxe : java Main <nom_fichier.png> <Lambda|Phi> <valeur>
+     */
+    private static void executeNonInteractiveMode(String[] args) {
+        try {
+            String inputFile = args[0];
+            String method = args[1];
+            
+            System.out.println("=== Mode non-interactif ===");
+            System.out.println("Image : " + inputFile);
+            System.out.println("Méthode : " + method);
+            
+            // Charger l'image
+            ImagePNG img = new ImagePNG(inputFile);
+            System.out.println("Image chargée : " + img.width() + "x" + img.height());
+            
+            // Construire le R-quadtree
+            RQuadtree quad = new RQuadtree(img);
+            System.out.println("R-quadtree construit avec " + quad.getLeafCount() + " feuilles");
+            
+            // Appliquer la compression
+            if (method.equalsIgnoreCase("Lambda")) {
+                double lambda = Double.parseDouble(args[2]);
+                System.out.println("Application de la compression Lambda = " + lambda);
+                quad.compressLambda(lambda);
+            } else if (method.equalsIgnoreCase("Phi")) {
+                int phi = Integer.parseInt(args[2]);
+                System.out.println("Application de la compression Phi = " + phi);
+                quad.compressPhi(phi);
+            } else {
+                System.err.println("Méthode inconnue : " + method + " (utiliser Lambda ou Phi)");
+                return;
+            }
+            
+            System.out.println("Compression appliquée : " + quad.getLeafCount() + " feuilles restantes");
+            
+            // Générer les noms de fichiers de sortie
+            String baseName = inputFile.substring(0, inputFile.lastIndexOf('.'));
+            String pngOutput = baseName + method.substring(0, 1) + args[2] + ".png";
+            String txtOutput = baseName + method.substring(0, 1) + args[2] + ".txt";
+            String avlTxtOutput = baseName + method.substring(0, 1) + args[2] + "AVL.txt";
+            
+            // Sauvegarder l'image compressée
+            ImagePNG compressed = quad.toPNG();
+            compressed.save(pngOutput);
+            System.out.println("Image compressée sauvegardée : " + pngOutput);
+            
+            // Sauvegarder la représentation textuelle du quadtree
+            saveToFile(quad.toStr(), txtOutput);
+            System.out.println("Représentation textuelle du R-quadtree : " + txtOutput);
+            
+            // Construire et sauvegarder l'AVL
+            AVL avl = new AVL(quad);
+            saveToFile(avl.toStr(), avlTxtOutput);
+            System.out.println("Représentation textuelle de l'AVL : " + avlTxtOutput);
+            
+            // Calculer les métriques
+            File originalFile = new File(inputFile);
+            File compressedFile = new File(pngOutput);
+            double weightRatio = Math.ceil(10000.0 * compressedFile.length() / originalFile.length()) / 100.0;
+            double eqm = ImagePNG.computeEQM(img, compressed);
+            
+            System.out.println("\n=== Résultats ===");
+            System.out.println("Rapport de poids : " + weightRatio + "%");
+            System.out.println("Indice EQM : " + eqm + "%");
+            System.out.println("Nombre de couleurs dans l'AVL : " + avl.size());
+            
+        } catch (Exception e) {
+            System.err.println("Erreur : " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Mode interactif avec menu textuel
+     */
+    private static void executeInteractiveMode() {
+        System.out.println("=================================================");
+        System.out.println("  Compression d'images bitmap avec R-quadtree  ");
+        System.out.println("=================================================\n");
+        
+        boolean running = true;
+        while (running) {
+            displayMenu();
+            int choice = readInt("Votre choix : ");
+            
+            try {
+                switch (choice) {
+                    case 1:
+                        buildQuadtreeFromImage();
+                        break;
+                    case 2:
+                        applyLambdaCompression();
+                        break;
+                    case 3:
+                        applyPhiCompression();
+                        break;
+                    case 4:
+                        saveQuadtreeToImage();
+                        break;
+                    case 5:
+                        saveQuadtreeToText();
+                        break;
+                    case 6:
+                        compareImages();
+                        break;
+                    case 7:
+                        buildAVLFromImage();
+                        break;
+                    case 8:
+                        buildAVLFromQuadtree();
+                        break;
+                    case 9:
+                        saveAVLToText();
+                        break;
+                    case 10:
+                        manageAVL();
+                        break;
+                    case 0:
+                        running = false;
+                        System.out.println("Au revoir !");
+                        break;
+                    default:
+                        System.out.println("Choix invalide !");
+                }
+            } catch (Exception e) {
+                System.err.println("Erreur : " + e.getMessage());
+                e.printStackTrace();
+            }
+            
+            if (running && choice != 0) {
+                System.out.println("\nAppuyez sur Entrée pour continuer...");
+                scanner.nextLine();
+            }
+        }
+        
+        scanner.close();
+    }
+    
+    /**
+     * Affiche le menu principal
+     */
+    private static void displayMenu() {
+        System.out.println("\n========== MENU PRINCIPAL ==========");
+        System.out.println("1.  Construire R-quadtree depuis une image PNG");
+        System.out.println("2.  Appliquer compression Lambda (qualité contrôlée)");
+        System.out.println("3.  Appliquer compression Phi (poids contrôlé)");
+        System.out.println("4.  Sauvegarder R-quadtree en image PNG");
+        System.out.println("5.  Sauvegarder R-quadtree en fichier TXT");
+        System.out.println("6.  Comparer deux images PNG (poids et EQM)");
+        System.out.println("7.  Construire AVL depuis une image PNG");
+        System.out.println("8.  Construire AVL depuis le R-quadtree");
+        System.out.println("9.  Sauvegarder AVL en fichier TXT");
+        System.out.println("10. Gérer l'AVL (recherche/ajout/suppression)");
+        System.out.println("0.  Quitter");
+        System.out.println("====================================");
+    }
+    
+    /**
+     * 1. Construire R-quadtree depuis une image PNG
+     */
+    private static void buildQuadtreeFromImage() throws IOException {
+        String filename = readString("Nom du fichier PNG : ");
+        
+        ImagePNG img = new ImagePNG(filename);
+        currentQuadtree = new RQuadtree(img);
+        currentImageName = filename;
+        
+        System.out.println("R-quadtree construit avec succès !");
+        System.out.println("Dimensions : " + img.width() + "x" + img.height());
+        System.out.println("Nombre de feuilles : " + currentQuadtree.getLeafCount());
+    }
+    
+    /**
+     * 2. Appliquer compression Lambda
+     */
+    private static void applyLambdaCompression() {
+        if (currentQuadtree == null) {
+            System.out.println("Aucun R-quadtree en mémoire. Veuillez d'abord charger une image (option 1).");
+            return;
+        }
+        
+        double lambda = readDouble("Valeur de Lambda (0-255) : ");
+        int leafCountBefore = currentQuadtree.getLeafCount();
+        
+        currentQuadtree.compressLambda(lambda);
+        int leafCountAfter = currentQuadtree.getLeafCount();
+        
+        System.out.println("Compression Lambda appliquée !");
+        System.out.println("Feuilles avant : " + leafCountBefore);
+        System.out.println("Feuilles après : " + leafCountAfter);
+        System.out.println("Réduction : " + (leafCountBefore - leafCountAfter) + " feuilles");
+    }
+    
+    /**
+     * 3. Appliquer compression Phi
+     */
+    private static void applyPhiCompression() {
+        if (currentQuadtree == null) {
+            System.out.println("Aucun R-quadtree en mémoire. Veuillez d'abord charger une image (option 1).");
+            return;
+        }
+        
+        int phi = readInt("Valeur de Phi (nombre max de feuilles) : ");
+        int leafCountBefore = currentQuadtree.getLeafCount();
+        
+        currentQuadtree.compressPhi(phi);
+        int leafCountAfter = currentQuadtree.getLeafCount();
+        
+        System.out.println("Compression Phi appliquée !");
+        System.out.println("Feuilles avant : " + leafCountBefore);
+        System.out.println("Feuilles après : " + leafCountAfter);
+    }
+    
+    /**
+     * 4. Sauvegarder R-quadtree en image PNG
+     */
+    private static void saveQuadtreeToImage() throws IOException {
+        if (currentQuadtree == null) {
+            System.out.println("Aucun R-quadtree en mémoire. Veuillez d'abord charger une image (option 1).");
+            return;
+        }
+        
+        String filename = readString("Nom du fichier de sortie PNG : ");
+        
+        ImagePNG img = currentQuadtree.toPNG();
+        img.save(filename);
+        
+        System.out.println("Image sauvegardée : " + filename);
+    }
+    
+    /**
+     * 5. Sauvegarder R-quadtree en fichier TXT
+     */
+    private static void saveQuadtreeToText() throws IOException {
+        if (currentQuadtree == null) {
+            System.out.println("Aucun R-quadtree en mémoire. Veuillez d'abord charger une image (option 1).");
+            return;
+        }
+        
+        String filename = readString("Nom du fichier de sortie TXT : ");
+        
+        String repr = currentQuadtree.toStr();
+        saveToFile(repr, filename);
+        
+        System.out.println("Représentation textuelle sauvegardée : " + filename);
+        System.out.println("Nombre de feuilles : " + currentQuadtree.getLeafCount());
+    }
+    
+    /**
+     * 6. Comparer deux images PNG
+     */
+    private static void compareImages() throws IOException {
+        String file1 = readString("Nom du premier fichier PNG : ");
+        String file2 = readString("Nom du second fichier PNG : ");
+        
+        ImagePNG img1 = new ImagePNG(file1);
+        ImagePNG img2 = new ImagePNG(file2);
+        
+        File f1 = new File(file1);
+        File f2 = new File(file2);
+        
+        double weightRatio = Math.ceil(10000.0 * f2.length() / f1.length()) / 100.0;
+        double eqm = ImagePNG.computeEQM(img1, img2);
+        
+        System.out.println("\n=== Comparaison ===");
+        System.out.println("Image 1 : " + file1 + " (" + f1.length() + " octets)");
+        System.out.println("Image 2 : " + file2 + " (" + f2.length() + " octets)");
+        System.out.println("Rapport de poids : " + weightRatio + "%");
+        System.out.println("Indice EQM : " + eqm + "%");
+    }
+    
+    /**
+     * 7. Construire AVL depuis une image PNG
+     */
+    private static void buildAVLFromImage() throws IOException {
+        String filename = readString("Nom du fichier PNG : ");
+        
+        ImagePNG img = new ImagePNG(filename);
+        RQuadtree quad = new RQuadtree(img);
+        currentAVL = new AVL(quad);
+        
+        System.out.println("AVL construit avec succès !");
+        System.out.println("Nombre de couleurs uniques : " + currentAVL.size());
+    }
+    
+    /**
+     * 8. Construire AVL depuis le R-quadtree
+     */
+    private static void buildAVLFromQuadtree() {
+        if (currentQuadtree == null) {
+            System.out.println("Aucun R-quadtree en mémoire. Veuillez d'abord charger une image (option 1).");
+            return;
+        }
+        
+        currentAVL = new AVL(currentQuadtree);
+        
+        System.out.println("AVL construit avec succès depuis le R-quadtree !");
+        System.out.println("Nombre de couleurs uniques : " + currentAVL.size());
+    }
+    
+    /**
+     * 9. Sauvegarder AVL en fichier TXT
+     */
+    private static void saveAVLToText() throws IOException {
+        if (currentAVL == null) {
+            System.out.println("Aucun AVL en mémoire. Veuillez d'abord construire un AVL (options 7 ou 8).");
+            return;
+        }
+        
+        String filename = readString("Nom du fichier de sortie TXT : ");
+        
+        String repr = currentAVL.toStr();
+        saveToFile(repr, filename);
+        
+        System.out.println("Représentation textuelle de l'AVL sauvegardée : " + filename);
+        System.out.println("Nombre de couleurs : " + currentAVL.size());
+    }
+    
+    /**
+     * 10. Gérer l'AVL (recherche/ajout/suppression)
+     */
+    private static void manageAVL() {
+        if (currentAVL == null) {
+            System.out.println("Aucun AVL en mémoire. Veuillez d'abord construire un AVL (options 7 ou 8).");
+            return;
+        }
+        
+        System.out.println("\n--- Gestion de l'AVL ---");
+        System.out.println("1. Rechercher une couleur");
+        System.out.println("2. Ajouter une couleur");
+        System.out.println("3. Supprimer une couleur");
+        
+        int choice = readInt("Votre choix : ");
+        String hexCode = readString("Code hexadécimal de la couleur (ex: ff0000) : ");
+        
+        switch (choice) {
+            case 1:
+                Color found = currentAVL.search(hexCode);
+                if (found != null) {
+                    System.out.println("Couleur trouvée : RGB(" + 
+                        found.getRed() + ", " + found.getGreen() + ", " + found.getBlue() + ")");
+                } else {
+                    System.out.println("Couleur non trouvée.");
+                }
+                break;
+            case 2:
+                Color color = ImagePNG.hexToColor(hexCode);
+                currentAVL.insert(hexCode, color);
+                System.out.println("Couleur ajoutée !");
+                System.out.println("Nombre de couleurs dans l'AVL : " + currentAVL.size());
+                break;
+            case 3:
+                currentAVL.remove(hexCode);
+                System.out.println("Couleur supprimée !");
+                System.out.println("Nombre de couleurs dans l'AVL : " + currentAVL.size());
+                break;
+            default:
+                System.out.println("Choix invalide !");
+        }
+    }
+    
+    // Méthodes utilitaires
+    
+    private static String readString(String prompt) {
+        System.out.print(prompt);
+        return scanner.nextLine().trim();
+    }
+    
+    private static int readInt(String prompt) {
+        System.out.print(prompt);
+        while (!scanner.hasNextInt()) {
+            System.out.print("Valeur invalide. " + prompt);
+            scanner.next();
+        }
+        int value = scanner.nextInt();
+        scanner.nextLine(); // Consommer la nouvelle ligne
+        return value;
+    }
+    
+    private static double readDouble(String prompt) {
+        System.out.print(prompt);
+        while (!scanner.hasNextDouble()) {
+            System.out.print("Valeur invalide. " + prompt);
+            scanner.next();
+        }
+        double value = scanner.nextDouble();
+        scanner.nextLine(); // Consommer la nouvelle ligne
+        return value;
+    }
+    
+    private static void saveToFile(String content, String filename) throws IOException {
+        try (FileWriter writer = new FileWriter(filename)) {
+            writer.write(content);
+        }
+    }
+}
