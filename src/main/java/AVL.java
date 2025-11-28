@@ -1,0 +1,299 @@
+import java.awt.Color;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Classe représentant un AVL pour stocker les couleurs d'un R-quadtree
+ * Chaque couleur est identifiée par son code hexadécimal
+ */
+public class AVL {
+    
+    // Nœud de l'AVL
+    private static class Node {
+        String hexCode;      // Code hexadécimal de la couleur
+        Color color;         // Couleur RGB
+        Node left, right;    // Fils gauche et droit
+        int height;          // Hauteur du sous-arbre
+        
+        Node(String hexCode, Color color) {
+            this.hexCode = hexCode;
+            this.color = color;
+            this.height = 1;
+        }
+    }
+    
+    private Node root;
+    private int size;
+    
+    /**
+     * Constructeur par défaut
+     */
+    public AVL() {
+        this.root = null;
+        this.size = 0;
+    }
+    
+    /**
+     * Constructeur à partir d'un R-quadtree
+     */
+    public AVL(RQuadtree quad) {
+        this();
+        String repr = quad.toStr();
+        // Parser la représentation textuelle et insérer les couleurs
+        parseAndInsert(repr);
+    }
+    
+    /**
+     * Parse la représentation textuelle d'un quadtree et insère les couleurs
+     */
+    private void parseAndInsert(String repr) {
+        // Format hiérarchique : (fils1 fils2 fils3 fils4) pour nœuds, hexcode pour feuilles
+        // On extrait uniquement les codes hexadécimaux (pas les parenthèses)
+        String[] tokens = repr.split("\\s+");
+        for (String token : tokens) {
+            // Ignorer les parenthèses vides ou tokens vides
+            if (token.isEmpty() || token.equals("(") || token.equals(")")) {
+                continue;
+            }
+            // Nettoyer les parenthèses autour du token
+            token = token.replaceAll("[()]", "");
+            if (!token.isEmpty() && token.matches("[0-9a-fA-F]{6}")) {
+                Color color = ImagePNG.hexToColor(token);
+                insert(token, color);
+            }
+        }
+    }
+    
+    /**
+     * Recherche une couleur dans l'AVL par son code hexadécimal
+     */
+    public Color search(String hexCode) {
+        Node node = searchNode(root, hexCode);
+        return node != null ? node.color : null;
+    }
+    
+    private Node searchNode(Node node, String hexCode) {
+        if (node == null) {
+            return null;
+        }
+        
+        int cmp = hexCode.compareTo(node.hexCode);
+        if (cmp < 0) {
+            return searchNode(node.left, hexCode);
+        } else if (cmp > 0) {
+            return searchNode(node.right, hexCode);
+        } else {
+            return node;
+        }
+    }
+    
+    /**
+     * Ajoute ou met à jour une couleur dans l'AVL
+     */
+    public void insert(String hexCode, Color color) {
+        root = insertNode(root, hexCode, color);
+    }
+    
+    private Node insertNode(Node node, String hexCode, Color color) {
+        // Insertion classique BST
+        if (node == null) {
+            size++;
+            return new Node(hexCode, color);
+        }
+        
+        int cmp = hexCode.compareTo(node.hexCode);
+        if (cmp < 0) {
+            node.left = insertNode(node.left, hexCode, color);
+        } else if (cmp > 0) {
+            node.right = insertNode(node.right, hexCode, color);
+        } else {
+            // Le nœud existe déjà, mise à jour
+            node.color = color;
+            return node;
+        }
+        
+        // Mettre à jour la hauteur
+        node.height = 1 + Math.max(height(node.left), height(node.right));
+        
+        // Rééquilibrer l'arbre
+        return balance(node);
+    }
+    
+    /**
+     * Retire une couleur de l'AVL
+     */
+    public void remove(String hexCode) {
+        root = removeNode(root, hexCode);
+    }
+    
+    private Node removeNode(Node node, String hexCode) {
+        if (node == null) {
+            return null;
+        }
+        
+        int cmp = hexCode.compareTo(node.hexCode);
+        if (cmp < 0) {
+            node.left = removeNode(node.left, hexCode);
+        } else if (cmp > 0) {
+            node.right = removeNode(node.right, hexCode);
+        } else {
+            // Nœud trouvé
+            size--;
+            
+            // Cas 1 : Feuille ou un seul enfant
+            if (node.left == null) {
+                return node.right;
+            } else if (node.right == null) {
+                return node.left;
+            }
+            
+            // Cas 2 : Deux enfants
+            Node successor = findMin(node.right);
+            node.hexCode = successor.hexCode;
+            node.color = successor.color;
+            node.right = removeNode(node.right, successor.hexCode);
+            size++; // Compenser la décrémentation
+        }
+        
+        // Mettre à jour la hauteur
+        node.height = 1 + Math.max(height(node.left), height(node.right));
+        
+        // Rééquilibrer l'arbre
+        return balance(node);
+    }
+    
+    /**
+     * Trouve le nœud minimum dans un sous-arbre
+     */
+    private Node findMin(Node node) {
+        while (node.left != null) {
+            node = node.left;
+        }
+        return node;
+    }
+    
+    /**
+     * Retourne la hauteur d'un nœud
+     */
+    private int height(Node node) {
+        return node == null ? 0 : node.height;
+    }
+    
+    /**
+     * Calcule le facteur d'équilibre d'un nœud
+     */
+    private int getBalance(Node node) {
+        return node == null ? 0 : height(node.left) - height(node.right);
+    }
+    
+    /**
+     * Rééquilibre un nœud si nécessaire
+     */
+    private Node balance(Node node) {
+        int balance = getBalance(node);
+        
+        // Cas gauche-gauche
+        if (balance > 1 && getBalance(node.left) >= 0) {
+            return rotateRight(node);
+        }
+        
+        // Cas gauche-droite
+        if (balance > 1 && getBalance(node.left) < 0) {
+            node.left = rotateLeft(node.left);
+            return rotateRight(node);
+        }
+        
+        // Cas droite-droite
+        if (balance < -1 && getBalance(node.right) <= 0) {
+            return rotateLeft(node);
+        }
+        
+        // Cas droite-gauche
+        if (balance < -1 && getBalance(node.right) > 0) {
+            node.right = rotateRight(node.right);
+            return rotateLeft(node);
+        }
+        
+        return node;
+    }
+    
+    /**
+     * Rotation à droite
+     */
+    private Node rotateRight(Node y) {
+        Node x = y.left;
+        Node T2 = x.right;
+        
+        x.right = y;
+        y.left = T2;
+        
+        y.height = 1 + Math.max(height(y.left), height(y.right));
+        x.height = 1 + Math.max(height(x.left), height(x.right));
+        
+        return x;
+    }
+    
+    /**
+     * Rotation à gauche
+     */
+    private Node rotateLeft(Node x) {
+        Node y = x.right;
+        Node T2 = y.left;
+        
+        y.left = x;
+        x.right = T2;
+        
+        x.height = 1 + Math.max(height(x.left), height(x.right));
+        y.height = 1 + Math.max(height(y.left), height(y.right));
+        
+        return y;
+    }
+    
+    /**
+     * Retourne le nombre de couleurs dans l'AVL
+     */
+    public int size() {
+        return size;
+    }
+    
+    /**
+     * Vérifie si l'AVL est vide
+     */
+    public boolean isEmpty() {
+        return size == 0;
+    }
+    
+    /**
+     * Représentation textuelle de l'AVL (parcours infixe)
+     */
+    public String toStr() {
+        StringBuilder sb = new StringBuilder();
+        toStrInOrder(root, sb);
+        return sb.toString().trim();
+    }
+    
+    private void toStrInOrder(Node node, StringBuilder sb) {
+        if (node != null) {
+            toStrInOrder(node.left, sb);
+            sb.append(node.hexCode).append(" ");
+            toStrInOrder(node.right, sb);
+        }
+    }
+    
+    /**
+     * Retourne toutes les couleurs de l'AVL sous forme de liste
+     */
+    public List<String> getAllColors() {
+        List<String> colors = new ArrayList<>();
+        collectColors(root, colors);
+        return colors;
+    }
+    
+    private void collectColors(Node node, List<String> colors) {
+        if (node != null) {
+            collectColors(node.left, colors);
+            colors.add(node.hexCode);
+            collectColors(node.right, colors);
+        }
+    }
+}
