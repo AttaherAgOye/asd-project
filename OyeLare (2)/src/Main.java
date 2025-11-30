@@ -120,9 +120,10 @@ public class Main {
         currentQuadtree = new RQuadtree(img);
         currentImageName = filename;
         
-        System.out.println("\nR-quadtree construit avec succès !");
-        System.out.println("Dimensions : " + img.width() + "x" + img.height());
-        System.out.println("Nombre de feuilles : " + currentQuadtree.getLeafCount());
+        System.out.println("\n R-quadtree construit avec succès !");
+        System.out.println("  Image source : " + filename);
+        System.out.println("  Dimensions : " + img.width() + " x " + img.height() + " pixels");
+        System.out.println("  Nombre de feuilles : " + currentQuadtree.getLeafCount());
     }
     
     /**

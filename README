@@ -1,0 +1,113 @@
+================================================================================
+                    PROJET : Compression d'images bitmap
+                    Algorithmique & Structures de données 3
+                    Licence 3 - Nantes Université 2025/2026
+================================================================================
+
+AUTEURS
+-------
+Oye Attaher Ag
+Lare Palamangue
+
+
+DESCRIPTION
+-----------
+Ce projet implémente la compression d'images bitmap en utilisant :
+- Un R-quadtree pour représenter l'image
+- Deux méthodes de compression : Lambda (qualité) et Phi (poids)
+- Un AVL pour stocker les couleurs uniques de l'image
+
+
+COMPILATION
+-----------
+La compilation se fait avec la commande :
+
+    javac -source 1.8 -target 1.8 -d Nom1Nom2/bin Nom1Nom2/src/*.java
+
+Ou avec le script fourni :
+
+    ./compile.sh
+
+
+EXÉCUTION
+---------
+
+1. Mode interactif :
+
+    java -classpath Nom1Nom2/bin Main
+
+   Un menu s'affiche avec les options suivantes :
+   1.  Construire R-quadtree depuis une image PNG
+   2.  Appliquer compression Lambda (qualité contrôlée)
+   3.  Appliquer compression Phi (poids contrôlé)
+   4.  Sauvegarder R-quadtree en image PNG
+   5.  Sauvegarder R-quadtree en fichier TXT
+   6.  Comparer deux images PNG (poids et EQM)
+   7.  Construire AVL depuis une image PNG
+   8.  Construire AVL depuis le R-quadtree
+   9.  Sauvegarder AVL en fichier TXT
+   10. Gérer l'AVL (recherche/ajout/suppression)
+   0.  Quitter
+
+
+2. Mode non-interactif :
+
+    java -classpath Nom1Nom2/bin Main <fichier.png> <Lambda|Phi> <paramètre>
+
+   Exemples :
+    java -classpath Nom1Nom2/bin Main images/i.png Lambda 20
+    java -classpath Nom1Nom2/bin Main images/32-tux.png Phi 50
+
+   Fichiers de sortie générés :
+   - <nom>-lambda<N>.png     : Image compressée
+   - <nom>-lambda<N>R.txt    : Représentation textuelle du R-quadtree
+   - <nom>-lambda<N>AVL.txt  : AVL des couleurs (parcours infixe)
+
+   Le programme affiche également :
+   - Le rapport de poids entre l'image originale et compressée
+   - L'indice EQM (Erreur Quadratique Moyenne)
+
+
+FICHIERS DE TEST
+----------------
+Le répertoire images/ contient des images PNG pour tester le programme :
+- i.png       : Image 4x4 (lettre "i" en noir et blanc)
+- 32-tux.png  : Image 32x32 (pingouin Tux)
+
+
+STRUCTURE DU PROJET
+-------------------
+src/
+├── Main.java       : Programme principal (menu interactif et non-interactif)
+├── RQuadtree.java  : Classe R-quadtree avec compressions Lambda et Phi
+├── AVL.java        : Arbre AVL pour stocker les couleurs
+└── ImagePNG.java   : Classe fournie pour manipuler les images PNG
+
+
+COMPLEXITÉS
+-----------
+RQuadtree :
+- Construction : O(n) où n = nombre de pixels
+- compressLambda : O(m) où m = nombre de nœuds
+- compressPhi : O(m × k) où k = nombre de réductions
+- toPNG : O(n)
+- toStr : O(m)
+
+AVL :
+- Recherche : O(log n)
+- Insertion : O(log n)
+- Suppression : O(log n)
+- Construction depuis image : O(n log n)
+
+
+FORMAT DE SORTIE
+----------------
+R-quadtree (toStr) :
+  Format hiérarchique : (fils1 fils2 fils3 fils4) pour les nœuds internes
+  Exemple : (ffffff (000000 ffffff ffffff ffffff) (000000 ffffff ffffff 000000) ffffff)
+
+AVL (toStr) :
+  Parcours infixe avec codes hexadécimaux entre parenthèses
+  Exemple : (000000) (ffffff)
+
+================================================================================
